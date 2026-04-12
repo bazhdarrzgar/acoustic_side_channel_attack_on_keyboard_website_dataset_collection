@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Acoustic Side Channel Attack on Keyboard: Website Dataset Collection
 
-## Getting Started
+A professional research tool developed for collecting acoustic signatures of keyboard keystrokes to study side-channel attacks. This project provides a streamlined interface for researchers to record, visualize, and package keystroke audio data.
 
-First, run the development server:
+## 🚀 Overview
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+This website serves as a data collection terminal for acoustic side-channel research. It allows for precise recording of keystroke sounds, associated with specific keys, to build robust datasets for machine learning models and security analysis.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **High-Fidelity Recording**: Capture clear acoustic signatures of individual keystrokes.
+- **Real-time Visualizer**: Visual representation of the audio input to ensure quality.
+- **Session Management**: Organized data collection structured by research sessions.
+- **Automated Packaging**: Effortlessly bundle collected data for further analysis.
+- **HIT Branding**: Integrated identity of Harbin Institute of Technology.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠 Tech Stack
 
-## Learn More
+- **Framework**: [Next.js 16](https://nextjs.org/)
+- **UI/UX**: React 19, Tailwind CSS 4
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+- **Backend/Logic**: TypeScript, Web Audio API
 
-To learn more about Next.js, take a look at the following resources:
+## 🏃 Getting Started
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Prerequisites
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Node.js 18.x or later
+- npm or yarn
 
-## Deploy on Vercel
+### Installation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/bazhdarrzgar/acoustic_side_channel_attack_on_keyboard_website_dataset_collection.git
+   cd acoustic_side_channel_attack_on_keyboard_website_dataset_collection
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🏛 Affiliation
+
+Developed at **Harbin Institute of Technology (HIT)** for research in cybersecurity and acoustic side-channel analysis.
+
+## 📄 License
+
+This project is intended for research and educational purposes.
+
