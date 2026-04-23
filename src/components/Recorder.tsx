@@ -24,6 +24,7 @@ export default function Recorder() {
     const writeIndexRef = useRef(0);
     const sampleRateRef = useRef(44100);
     const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+    const lastKeyPressTimesRef = useRef<number[]>([]);
 
     const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
         const timestamp = new Date().toLocaleTimeString();
@@ -77,6 +78,7 @@ export default function Recorder() {
             const time = now.toTimeString().split(' ')[0].replace(/:/g, '-');
             const timestamp = `${date}_${time}`;
             setSessionStartTime(timestamp);
+            lastKeyPressTimesRef.current = [];
 
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
@@ -132,9 +134,18 @@ export default function Recorder() {
     const captureKeyPress = useCallback(async (key: string) => {
         if (!isRecording || !bufferRef.current || !audioCtxRef.current) return;
 
+        const now = Date.now();
+        const history = lastKeyPressTimesRef.current;
+        const prevKeyTime = history.length > 0 ? history[history.length - 1] : 0;
+        const timeSinceLast = (prevKeyTime === 0) ? Infinity : (now - prevKeyTime);
+
+        // Record this press in history
+        history.push(now);
+        if (history.length > 50) history.shift();
+
         const sampleRate = sampleRateRef.current;
         const buffer = bufferRef.current;
-        const captureTime = Date.now();
+        const captureTime = now;
         const markIndex = writeIndexRef.current;
 
         addLog(`Key pressed: "${key}". Processing...`, 'info');
@@ -152,6 +163,26 @@ export default function Recorder() {
             for (let i = 0; i < totalSamples; i++) {
                 snippet[i] = buffer[readIndex];
                 readIndex = (readIndex + 1) % buffer.length;
+            }
+
+            // If keys were pressed too close together (less than 500ms), silence the pre-trigger buffer
+            // to avoid capturing the previous key's sound in this snippet's 500ms lead-in.
+            if (timeSinceLast < 500) {
+                for (let i = 0; i < halfSecondSamples; i++) {
+                    snippet[i] = 0;
+                }
+            }
+
+            // Also check if any key was pressed AFTER this one within 500ms.
+            // If so, silence the part of the buffer where the next key starts.
+            const nextKeyTime = lastKeyPressTimesRef.current.find(t => t > captureTime);
+            if (nextKeyTime && (nextKeyTime - captureTime) < 500) {
+                const overlapStartOffset = Math.floor((nextKeyTime - captureTime) * (sampleRate / 1000));
+                const overlapStartIndex = halfSecondSamples + overlapStartOffset;
+
+                for (let i = overlapStartIndex; i < totalSamples; i++) {
+                    snippet[i] = 0;
+                }
             }
 
             // Convert snippet to AudioBuffer for WAV conversion
