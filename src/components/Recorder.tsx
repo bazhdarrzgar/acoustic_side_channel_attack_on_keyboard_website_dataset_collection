@@ -556,7 +556,7 @@ export default function Recorder() {
 
                 {/* Right Side: Info, Stats, and Logs */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', overflow: 'hidden' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', display: 'grid' }}>
                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '16px', border: '1px solid var(--card-border)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.8rem' }}>
                                 <Keyboard className="text-primary" size={18} />
