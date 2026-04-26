@@ -4,22 +4,23 @@
 set -e
 
 # Configuration
-DOMAIN="amez-research.work.gd"
-REMOTE_IP="148.113.3.139"
+DOMAIN="keyboard.work.gd"
+REMOTE_IP="206.206.76.143"
+EMAIL="admin@$DOMAIN" # Replace with your real email for SSL renewal notifications
 
 echo "🌐 Starting Nginx setup for $DOMAIN on $REMOTE_IP..."
 
-# 1. Update system and install Nginx
-echo "📦 Updating package lists and installing Nginx..."
+# 1. Update system and install Nginx & Certbot
+echo "📦 Updating package lists and installing Nginx and Certbot..."
 sudo apt update
-sudo apt install -y nginx
+sudo apt install -y nginx certbot python3-certbot-nginx
 
-# 2. Create Nginx configuration
+# 2. Create Nginx configuration (Initial HTTP)
 echo "🛠 Creating Nginx configuration for $DOMAIN..."
 cat <<EOF | sudo tee /etc/nginx/sites-available/$DOMAIN
 server {
     listen 80;
-    server_name $DOMAIN $REMOTE_IP;
+    server_name $DOMAIN;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -51,12 +52,21 @@ sudo nginx -t
 echo "⚙️ Restarting Nginx..."
 sudo systemctl restart nginx
 
-# 5. Firewall configuration (Optional but recommended)
+# 5. Firewall configuration
 if command -v ufw &> /dev/null; then
-    echo "🛡 Configuring firewall to allow HTTP (port 80)..."
+    echo "🛡 Configuring firewall to allow HTTP and HTTPS..."
     sudo ufw allow 'Nginx Full'
 fi
 
-echo "✨ Nginx setup complete!"
-echo "📍 Your website should now be accessible at: http://$DOMAIN"
-echo "⚠️  Note: Make sure your Next.js application is running on port 3000 (e.g., via 'yarn start')."
+# 6. Obtain SSL Certificate via Certbot
+echo "🔐 Obtaining SSL Certificate for $DOMAIN..."
+# Note: This will fail if the domain is not pointing to this server yet
+sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email $EMAIL --redirect
+
+# 7. Final Restart
+echo "⚙️ Restarting Nginx to apply SSL..."
+sudo systemctl restart nginx
+
+echo "✨ Nginx HTTPS setup complete!"
+echo "📍 Your website should now be accessible at: https://$DOMAIN"
+echo "⚠️  Note: Make sure your Next.js application is running on port 3000."

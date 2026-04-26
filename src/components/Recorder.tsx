@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Square, Keyboard, Sun, Moon, CheckCircle2, History, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Mic, Square, Pause, Play, Keyboard, Sun, Moon, CheckCircle2, History, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import Visualizer from './Visualizer';
 import { bufferToWav } from '@/lib/wav-utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Recorder() {
     const [isRecording, setIsRecording] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
     const [logs, setLogs] = useState<{ id: string; msg: string; type: 'info' | 'success' | 'error'; timestamp: string }[]>([]);
     const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -16,6 +17,7 @@ export default function Recorder() {
     const [showModelError, setShowModelError] = useState(false);
     const [isDetected, setIsDetected] = useState(false);
     const [activeKey, setActiveKey] = useState<string | null>(null);
+    const [keyCounts, setKeyCounts] = useState<Record<string, number>>({});
     const [zoom, setZoom] = useState(0.9);
 
     const audioCtxRef = useRef<AudioContext | null>(null);
@@ -78,6 +80,8 @@ export default function Recorder() {
             const time = now.toTimeString().split(' ')[0].replace(/:/g, '-');
             const timestamp = `${date}_${time}`;
             setSessionStartTime(timestamp);
+            setKeyCounts({});
+            setIsPaused(false);
             lastKeyPressTimesRef.current = [];
 
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -128,11 +132,26 @@ export default function Recorder() {
         scriptProcessorRef.current?.disconnect();
         audioCtxRef.current?.close();
         setIsRecording(false);
+        setIsPaused(false);
         addLog('Recording stopped.', 'info');
     };
 
+    const togglePause = async () => {
+        if (!audioCtxRef.current) return;
+
+        if (audioCtxRef.current.state === 'running') {
+            await audioCtxRef.current.suspend();
+            setIsPaused(true);
+            addLog('Recording paused.', 'info');
+        } else if (audioCtxRef.current.state === 'suspended') {
+            await audioCtxRef.current.resume();
+            setIsPaused(false);
+            addLog('Recording resumed.', 'info');
+        }
+    };
+
     const captureKeyPress = useCallback(async (key: string) => {
-        if (!isRecording || !bufferRef.current || !audioCtxRef.current) return;
+        if (!isRecording || isPaused || !bufferRef.current || !audioCtxRef.current) return;
 
         const now = Date.now();
         const history = lastKeyPressTimesRef.current;
@@ -212,29 +231,39 @@ export default function Recorder() {
                 addLog(`Error saving "${key}".`, 'error');
             }
         }, 550); // slightly more than 500ms to be safe
-    }, [isRecording, computerModel, sessionStartTime]);
+    }, [isRecording, computerModel, sessionStartTime, isPaused]);
+
+    const normalizeKey = (key: string) => {
+        let k = key;
+        if (k === ' ') k = 'Space';
+        else if (k === 'ArrowUp') k = 'Up';
+        else if (k === 'ArrowDown') k = 'Down';
+        else if (k === 'ArrowLeft') k = 'Left';
+        else if (k === 'ArrowRight') k = 'Right';
+        else if (k === 'Control') k = 'Ctrl';
+        else if (k === 'Meta') k = 'Win';
+        else if (k === 'PageUp') k = 'PgUp';
+        else if (k === 'PageDown') k = 'PgDn';
+        else if (k === 'PrintScreen') k = 'Prt';
+        else if (k === 'CapsLock') k = 'Caps';
+        else if (k.length === 1) k = k.toUpperCase();
+        return k;
+    };
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (isRecording) {
+            if (isRecording && !isPaused) {
                 // Prevent default for keys like Space or Arrow keys to avoid scrolling
                 if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
                     e.preventDefault();
                 }
 
-                let k = e.key;
-                if (k === ' ') k = 'Space';
-                else if (k === 'ArrowUp') k = 'Up';
-                else if (k === 'ArrowDown') k = 'Down';
-                else if (k === 'ArrowLeft') k = 'Left';
-                else if (k === 'ArrowRight') k = 'Right';
-                else if (k === 'Control') k = 'Ctrl';
-                else if (k === 'Meta') k = 'Win';
-                else if (k === 'PageUp') k = 'PgUp';
-                else if (k === 'PageDown') k = 'PgDn';
-                else if (k === 'PrintScreen') k = 'Prt';
-                else if (k === 'CapsLock') k = 'Caps';
-                else if (k.length === 1) k = k.toUpperCase();
+                const k = normalizeKey(e.key);
+
+                setKeyCounts(prev => ({
+                    ...prev,
+                    [k]: (prev[k] || 0) + 1
+                }));
 
                 setActiveKey(k);
                 setTimeout(() => setActiveKey(null), 150);
@@ -245,7 +274,7 @@ export default function Recorder() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isRecording, captureKeyPress]);
+    }, [isRecording, captureKeyPress, isPaused]);
 
     return (
         <div className="glass-card" style={{
@@ -359,7 +388,7 @@ export default function Recorder() {
                     </div>
 
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        {!isRecording ? (
+                        {!isRecording && (
                             <button
                                 onClick={startRecording}
                                 className="btn btn-primary"
@@ -367,16 +396,33 @@ export default function Recorder() {
                             >
                                 <Mic size={20} /> Start Session
                             </button>
-                        ) : (
-                            <button onClick={stopRecording} className="btn" style={{ background: 'var(--error)', color: '#fff', padding: '0.8rem 2rem' }}>
-                                <Square size={20} /> End Session
-                            </button>
+                        )}
+                        {isRecording && (
+                            <>
+                                <button
+                                    onClick={togglePause}
+                                    className="btn btn-secondary"
+                                    style={{ padding: '0.8rem 1.5rem', borderColor: isPaused ? 'var(--primary)' : 'var(--card-border)' }}
+                                >
+                                    {isPaused ? <><Play size={20} /> Resume</> : <><Pause size={20} /> Pause</>}
+                                </button>
+                                <button onClick={stopRecording} className="btn" style={{ background: 'var(--error)', color: '#fff', padding: '0.8rem 1.5rem' }}>
+                                    <Square size={20} /> Stop
+                                </button>
+                            </>
                         )}
                         {isRecording && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--error)' }}>
-                                    <div className="recording-pulse" />
-                                    <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>LIVE CAPTURING</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: isPaused ? 'var(--secondary)' : 'var(--error)' }}>
+                                    <div className={isPaused ? "" : "recording-pulse"} style={{
+                                        width: '8px',
+                                        height: '8px',
+                                        borderRadius: '50%',
+                                        background: isPaused ? '#888' : 'currentColor'
+                                    }} />
+                                    <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                                        {isPaused ? 'SESSION PAUSED' : 'LIVE CAPTURING'}
+                                    </span>
                                 </div>
                                 <div style={{ fontSize: '0.6rem', opacity: 0.6, fontFamily: 'monospace' }}>
                                     Saving to: Keyboard/{computerModel.replace(/[^a-z0-9]/gi, '_').toLowerCase()}/...
@@ -438,33 +484,70 @@ export default function Recorder() {
                                 ]
                             ].map((row, i) => (
                                 <div key={i} style={{ display: 'flex', gap: '0.35rem' }}>
-                                    {row.map((btn, j) => (
-                                        <div
-                                            key={`${i}-${j}`}
-                                            style={{
-                                                flex: btn.f,
-                                                height: '30px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                borderRadius: '6px',
-                                                fontSize: btn.k.length > 2 ? '0.55rem' : '0.75rem',
-                                                fontWeight: 800,
-                                                background: activeKey === btn.k ? 'var(--primary)' : 'rgba(255,255,255,0.03)',
-                                                color: activeKey === btn.k ? '#000' : '#777',
-                                                border: `1px solid ${activeKey === btn.k ? 'var(--primary)' : 'rgba(255,255,255,0.08)'}`,
-                                                boxShadow: activeKey === btn.k
-                                                    ? '0 0 15px var(--primary-glow)'
-                                                    : '0 1px 2px rgba(0,0,0,0.2)',
-                                                transition: 'all 0.05s ease',
-                                                transform: activeKey === btn.k ? 'translateY(1px)' : 'translateY(0)',
-                                                overflow: 'hidden',
-                                                whiteSpace: 'nowrap'
-                                            }}
-                                        >
-                                            {btn.k}
-                                        </div>
-                                    ))}
+                                    {row.map((btn, j) => {
+                                        const count = keyCounts[btn.k] || 0;
+                                        const isPressed = activeKey === btn.k;
+
+                                        let bg = 'rgba(255,255,255,0.03)';
+                                        let border = '1px solid rgba(255,255,255,0.08)';
+                                        let color = '#777';
+                                        let shadow = '0 1px 2px rgba(0,0,0,0.2)';
+
+                                        if (isPressed) {
+                                            bg = 'var(--primary)';
+                                            border = '1px solid var(--primary)';
+                                            color = '#000';
+                                            shadow = '0 0 15px var(--primary-glow)';
+                                        } else if (count >= 5) {
+                                            bg = 'rgba(34, 197, 94, 0.25)';
+                                            border = '1px solid rgba(34, 197, 94, 0.5)';
+                                            color = '#fff';
+                                            shadow = '0 0 10px rgba(34, 197, 94, 0.1)';
+                                        } else if (count > 0) {
+                                            bg = 'rgba(239, 68, 68, 0.25)';
+                                            border = '1px solid rgba(239, 68, 68, 0.5)';
+                                            color = '#fff';
+                                            shadow = '0 0 10px rgba(239, 68, 68, 0.1)';
+                                        }
+
+                                        return (
+                                            <div
+                                                key={`${i}-${j}`}
+                                                style={{
+                                                    flex: btn.f,
+                                                    height: '30px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    borderRadius: '6px',
+                                                    fontSize: btn.k.length > 2 ? '0.55rem' : '0.75rem',
+                                                    fontWeight: 800,
+                                                    background: bg,
+                                                    color: color,
+                                                    border: border,
+                                                    boxShadow: shadow,
+                                                    transition: 'all 0.05s ease',
+                                                    transform: isPressed ? 'translateY(1px)' : 'translateY(0)',
+                                                    overflow: 'hidden',
+                                                    whiteSpace: 'nowrap',
+                                                    position: 'relative'
+                                                }}
+                                            >
+                                                {btn.k}
+                                                {count > 0 && !isPressed && (
+                                                    <span style={{
+                                                        position: 'absolute',
+                                                        top: '1px',
+                                                        right: '2px',
+                                                        fontSize: '0.4rem',
+                                                        opacity: 0.6
+                                                    }}>
+                                                        {count}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ))}
                         </div>

@@ -1,7 +1,7 @@
-37vm91ieYY
+W1l2Lc0qt9
 
 cd /home/project_amez/amez
-scp amez.zip root@148.113.3.139:/home/project_amez
+scp amez.zip root@206.206.76.143:/home/project_amez
 rm -rf amez
 unzip amez.zip
 rm -rf amez.zip

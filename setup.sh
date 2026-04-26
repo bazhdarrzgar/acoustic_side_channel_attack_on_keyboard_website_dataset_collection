@@ -33,20 +33,21 @@ nvm install 20
 nvm use 20
 nvm alias default 20
 
-# 4. Install Yarn
-echo "🧶 Installing Yarn..."
-corepack enable
-corepack prepare yarn@stable --activate
-
-# 5. Verify installation
+# 4. Verify installation
 NODE_VER=$(node -v)
-YARN_VER=$(yarn -v)
+NPM_VER=$(npm -v)
 echo "✅ Using Node $NODE_VER"
-echo "✅ Using Yarn $YARN_VER"
+echo "✅ Using NPM $NPM_VER"
 
-# 6. Install project dependencies
-echo "🛠 Installing project dependencies with Yarn..."
-yarn install
+# 5. Install project dependencies
+echo "🛠 Installing project dependencies with NPM..."
+npm install
+
+# 6. Build the project
+echo "🏗 Building the project..."
+npm run build
 
 echo "✨ Setup complete! You can now run the project using:"
-echo "   yarn dev"
+echo "   npm run dev"
+echo "   or"
+echo "   npm start"
