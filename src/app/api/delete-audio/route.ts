@@ -21,6 +21,26 @@ export async function DELETE(request: Request) {
 
         await fs.unlink(fullPath);
 
+        // Also try to delete the metadata JSON file if it exists
+        const jsonPath = fullPath.replace(/\.wav$/, '.json');
+        try {
+            await fs.unlink(jsonPath);
+        } catch {
+            // Ignore if JSON doesn't exist
+        }
+
+        // Update master keyboard.json
+        const masterPath = path.join(process.cwd(), 'Keyboard', 'keyboard.json');
+        try {
+            const content = await fs.readFile(masterPath, 'utf-8');
+            let masterData = JSON.parse(content);
+            const normalizedRelPath = relativePath.replace(/\\/g, '/');
+            masterData = masterData.filter((item: any) => item.relativePath !== normalizedRelPath);
+            await fs.writeFile(masterPath, JSON.stringify(masterData, null, 2));
+        } catch {
+            // Ignore if master file doesn't exist
+        }
+
         // Optional: clean up empty parent directories
         let currentDir = path.dirname(fullPath);
         while (currentDir !== keyboardPath) {

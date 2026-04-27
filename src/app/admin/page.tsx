@@ -932,6 +932,38 @@ export default function AdminDashboard() {
             <h1 className="main-title">
               {activeSection === 'overview' ? 'System Overview' : 'Audio Browser'}
             </h1>
+            <div style={{ display: 'flex', gap: '0.8rem' }}>
+              <button
+                className="btn-action"
+                style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                onClick={() => {
+                  const manifest = {
+                    version: "2.0.0",
+                    exportedAt: new Date().toISOString(),
+                    totalFiles: entries.length,
+                    devices: stats?.models || [],
+                    keys: stats?.keys || [],
+                    recordings: entries.map(e => ({
+                      key: e.key,
+                      device: e.model,
+                      session: e.session,
+                      filename: e.filename,
+                      path: e.relativePath,
+                      capturedAt: e.createdAt
+                    }))
+                  };
+                  const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `keyboard_dataset_manifest_${new Date().toISOString().split('T')[0]}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                <Download size={15} /> Export Manifest
+              </button>
+            </div>
           </div>
 
           {activeSection === 'overview' && (

@@ -49,7 +49,59 @@ export async function POST(req: NextRequest) {
 
     await fs.writeFile(filePath, buffer);
 
-    return NextResponse.json({ success: true, path: filePath });
+    // Calculate press time by finding the peak amplitude in the 1s buffer
+    // The samples are 16-bit PCM (little endian)
+    let peakIndex = 0;
+    let maxAmp = 0;
+    const sampleSize = 2; // 16-bit
+    const dataOffset = 44; // WAV header size
+
+    for (let i = dataOffset; i < buffer.length; i += sampleSize) {
+      if (i + 1 >= buffer.length) break;
+      const sample = buffer.readInt16LE(i);
+      const absSample = Math.abs(sample);
+      if (absSample > maxAmp) {
+        maxAmp = absSample;
+        peakIndex = (i - dataOffset) / sampleSize;
+      }
+    }
+
+    // Nominal sample rate is 44100 or what's in the WAV header
+    const sampleRate = buffer.readUInt32LE(24);
+    const pressTimeSeconds = peakIndex / sampleRate;
+
+    // Save individual metadata as JSON
+    const metaFileName = `${hashId}.json`;
+    const metaFilePath = path.join(folderPath, metaFileName);
+    const metadata = {
+      key: key,
+      model: model,
+      sessionTimestamp: sessionTimestamp,
+      filename: fileName,
+      relativePath: path.relative(path.join(process.cwd(), 'Keyboard'), filePath).replace(/\\/g, '/'),
+      timestamp: new Date().toISOString(),
+      press_time_seconds: parseFloat(pressTimeSeconds.toFixed(6))
+    };
+    await fs.writeFile(metaFilePath, JSON.stringify(metadata, null, 2));
+
+    // Update master keyboard.json in Keyboard/ folder
+    const masterPath = path.join(process.cwd(), 'Keyboard', 'keyboard.json');
+    let masterData = [];
+    try {
+      const content = await fs.readFile(masterPath, 'utf-8');
+      masterData = JSON.parse(content);
+    } catch {
+      // Create new if not exists
+    }
+    masterData.push(metadata);
+    await fs.writeFile(masterPath, JSON.stringify(masterData, null, 2));
+
+    return NextResponse.json({
+      success: true,
+      path: filePath,
+      metaPath: metaFilePath,
+      press_time: pressTimeSeconds
+    });
   } catch (error) {
     console.error('Save error:', error);
     return NextResponse.json({ error: 'Failed to save audio' }, { status: 500 });
