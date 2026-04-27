@@ -250,6 +250,7 @@ h1 {
   transform: translateY(0);
 }
 
+
 .btn-icon {
   background: transparent;
   border: none;
@@ -259,4 +260,26 @@ h1 {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+}
+
+.admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  color: #555;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+}
+
+.admin-link:hover {
+  color: #00f2ff !important;
+  border-color: rgba(0, 242, 255, 0.25) !important;
+  background: rgba(0, 242, 255, 0.05) !important;
 }
