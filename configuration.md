@@ -20,4 +20,3 @@ ssh root@206.206.76.143
 
 git clone https://github.com/bazhdarrzgar/acoustic_side_channel_attack_on_keyboard_website_dataset_collection
 
-in adminstration page create new section name is tree in this section the folder structure of keyboard dataset shown in this page and structured and when they click it can listen and seen the data of wav file as mfcc and spectrogram and also the label of the data and ...
