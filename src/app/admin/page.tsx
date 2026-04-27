@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ShieldCheck, LogOut, Folder, Music, Database,
   Cpu, Search, Play, Pause, Square, RefreshCw,
-  BarChart2, FileAudio, HardDrive, Layers, ChevronRight, ChevronLeft,
+  BarChart2, FileAudio, HardDrive, Layers, ChevronRight, ChevronLeft, ChevronDown,
   X, Volume2, Clock, Filter, Download, Zap, Wand2, Activity, Trash2
 
 } from 'lucide-react';
@@ -41,6 +41,49 @@ function formatBytes(bytes: number): string {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+interface TreeFolder {
+  name: string;
+  type: 'folder';
+  children: (TreeFolder | TreeFile)[];
+}
+
+interface TreeFile {
+  name: string;
+  type: 'file';
+  entry: AudioEntry;
+}
+
+type TreeItem = TreeFolder | TreeFile;
+
+function buildTree(entries: AudioEntry[]): TreeFolder {
+  const root: TreeFolder = { name: 'Keyboard', type: 'folder', children: [] };
+
+  entries.forEach(entry => {
+    const parts = entry.relativePath.split('/');
+    let current = root;
+
+    parts.forEach((part, index) => {
+      const isLast = index === parts.length - 1;
+      let existing = current.children.find(child => child.name === part);
+
+      if (!existing) {
+        if (isLast) {
+          const file: TreeFile = { name: part, type: 'file', entry };
+          current.children.push(file);
+        } else {
+          const folder: TreeFolder = { name: part, type: 'folder', children: [] };
+          current.children.push(folder);
+          current = folder;
+        }
+      } else if (existing.type === 'folder') {
+        current = existing;
+      }
+    });
+  });
+
+  return root;
 }
 
 function WaveformBar({ active }: { active: boolean }) {
@@ -561,6 +604,134 @@ function CleaningModule({ allEntries, setSelectedFiles, stats: globalStats, form
 
 
 
+function TreeNode({ node, depth, onSelect, selectedId }: { node: TreeItem, depth: number, onSelect: (e: AudioEntry) => void, selectedId?: string }) {
+  const [isOpen, setIsOpen] = useState(depth < 2);
+  const isSelected = node.type === 'file' && node.entry.relativePath === selectedId;
+
+  if (node.type === 'file') {
+    return (
+      <div
+        className={`tree-node tree-file ${isSelected ? 'active' : ''}`}
+        style={{ paddingLeft: `${depth * 1.2}rem` }}
+        onClick={() => onSelect(node.entry)}
+      >
+        <Music size={14} className="node-icon" />
+        <span className="node-name">{node.name}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="tree-folder-group">
+      <div
+        className="tree-node tree-folder"
+        style={{ paddingLeft: `${depth * 1.2}rem` }}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="chevron-wrap">
+          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </div>
+        <Folder size={14} className="node-icon" />
+        <span className="node-name">{node.name}</span>
+      </div>
+      {isOpen && (
+        <div className="tree-children">
+          {node.children
+            .sort((a, b) => {
+              if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+              return a.name.localeCompare(b.name);
+            })
+            .map((child, i) => (
+              <TreeNode key={i} node={child} depth={depth + 1} onSelect={onSelect} selectedId={selectedId} />
+            ))
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TreeModule({ entries, formatBytes, formatDate, onDelete }: {
+  entries: AudioEntry[];
+  formatBytes: (b: number) => string;
+  formatDate: (iso: string) => string;
+  onDelete: (e: React.MouseEvent, entry: AudioEntry) => void;
+}) {
+  const [selectedEntry, setSelectedEntry] = useState<AudioEntry | null>(null);
+  const tree = buildTree(entries);
+
+  return (
+    <div className="tree-module animate-in">
+      <div className="module-header">
+        <div>
+          <h2 className="module-title">Dataset Explorer</h2>
+          <p className="module-subtitle">Hierarchical view of the keyboard dataset</p>
+        </div>
+      </div>
+
+      <div className="tree-layout">
+        <aside className="tree-explorer">
+          <div className="tree-scroll">
+            <TreeNode node={tree} depth={0} onSelect={setSelectedEntry} selectedId={selectedEntry?.relativePath} />
+          </div>
+        </aside>
+
+        <main className="tree-detail">
+          {selectedEntry ? (
+            <div className="tree-detail-content">
+              <TrackAnalysis
+                entry={selectedEntry}
+                onRemove={() => setSelectedEntry(null)}
+                onDelete={onDelete}
+                globalTrigger={0}
+              />
+
+              <div className="metadata-card detail-card animate-in" style={{ marginTop: '1.5rem' }}>
+                <div className="detail-card-header">
+                  <Database size={16} />
+                  <h3>File Metadata</h3>
+                </div>
+                <div className="metadata-grid">
+                  <div className="meta-item">
+                    <label>Key Content</label>
+                    <span className="file-key-badge">{selectedEntry.key}</span>
+                  </div>
+                  <div className="meta-item">
+                    <label>Device Model</label>
+                    <span className="model-name-text">{selectedEntry.model}</span>
+                  </div>
+                  <div className="meta-item">
+                    <label>Session Path</label>
+                    <span className="session-path-text">{selectedEntry.session}</span>
+                  </div>
+                  <div className="meta-item">
+                    <label>File Size</label>
+                    <span>{formatBytes(selectedEntry.size)}</span>
+                  </div>
+                  <div className="meta-item">
+                    <label>Created On</label>
+                    <span>{formatDate(selectedEntry.createdAt)}</span>
+                  </div>
+                  <div className="meta-item">
+                    <label>System Path</label>
+                    <code className="path-code">{selectedEntry.relativePath}</code>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="module-empty">
+              <Folder size={48} strokeWidth={1} />
+              <h3>Select a file to inspect</h3>
+              <p>Explore the dataset structure and pick a .wav file to see its analysis and metrics.</p>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
 function AudioPlayer({ entry, onClose }: { entry: AudioEntry; onClose: () => void }) {
 
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -752,7 +923,7 @@ export default function AdminDashboard() {
   const [filterModel, setFilterModel] = useState('');
   const [filterKey, setFilterKey] = useState('');
   const [activeEntry, setActiveEntry] = useState<AudioEntry | null>(null);
-  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'cleaning'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'cleaning' | 'tree'>('overview');
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<AudioEntry[]>([]);
 
@@ -906,6 +1077,13 @@ export default function AdminDashboard() {
             <span>Audio Cleaning</span>
             {selectedFiles.length > 0 && <span className="nav-badge nav-badge--cyan" style={{ background: 'rgba(0, 242, 255, 0.1)', color: '#00f2ff' }}>{selectedFiles.length}</span>}
           </button>
+          <button
+            className={`nav-item ${activeSection === 'tree' ? 'nav-item--active' : ''}`}
+            onClick={() => setActiveSection('tree')}
+          >
+            <Folder size={18} />
+            <span>Dataset Tree</span>
+          </button>
 
         </nav>
 
@@ -930,9 +1108,18 @@ export default function AdminDashboard() {
           <div className="content-header">
             <div className="header-badge">Admin Dashboard</div>
             <h1 className="main-title">
-              {activeSection === 'overview' ? 'System Overview' : 'Audio Browser'}
+              {activeSection === 'overview' ? 'System Overview' : activeSection === 'tree' ? 'Dataset Explorer' : 'Audio Browser'}
             </h1>
             <div style={{ display: 'flex', gap: '0.8rem' }}>
+              <button
+                className="btn-action btn-action--primary"
+                style={{ background: 'rgba(0, 242, 255, 0.1)', color: '#00f2ff', border: '1px solid rgba(0, 242, 255, 0.2)' }}
+                onClick={() => {
+                  window.location.href = '/api/download-all';
+                }}
+              >
+                <Folder size={15} /> Download All (ZIP)
+              </button>
               <button
                 className="btn-action"
                 style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.1)' }}
@@ -1261,6 +1448,17 @@ export default function AdminDashboard() {
                 setActiveEntry={setActiveEntry}
                 setPlayingId={setPlayingId}
                 playingId={playingId}
+                onDelete={handleDelete}
+              />
+            </div>
+          )}
+
+          {activeSection === 'tree' && (
+            <div className="section-content">
+              <TreeModule
+                entries={entries}
+                formatBytes={formatBytes}
+                formatDate={formatDate}
                 onDelete={handleDelete}
               />
             </div>
@@ -2622,6 +2820,117 @@ export default function AdminDashboard() {
           background: #00f2ff;
           cursor: pointer;
         }
+
+        /* ── Tree Module ── */
+        .tree-layout {
+          display: grid;
+          grid-template-columns: 320px 1fr;
+          gap: 1.5rem;
+          height: calc(100vh - 250px);
+          min-height: 500px;
+        }
+
+        @media (max-width: 1000px) {
+          .tree-layout { grid-template-columns: 1fr; height: auto; }
+        }
+
+        .tree-explorer {
+          background: rgba(20,20,30,0.3);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 20px;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .tree-scroll {
+          flex: 1;
+          overflow-y: auto;
+          padding: 1rem 0;
+        }
+
+        .tree-node {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.5rem 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 0.85rem;
+          color: #888;
+        }
+
+        .tree-node:hover {
+          background: rgba(255,255,255,0.04);
+          color: #ccc;
+        }
+
+        .tree-node.active {
+          background: rgba(0,242,255,0.1);
+          color: #00f2ff;
+          border-left: 2px solid #00f2ff;
+        }
+
+        .node-icon { opacity: 0.6; }
+        .active .node-icon { opacity: 1; }
+
+        .chevron-wrap {
+          width: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0.4;
+        }
+
+        .node-name {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .tree-detail {
+          overflow-y: auto;
+          border-radius: 20px;
+        }
+
+        .metadata-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 1.5rem;
+        }
+
+        .meta-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0.3rem;
+        }
+
+        .meta-item label {
+          font-size: 0.6rem;
+          color: #555;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-weight: 700;
+        }
+
+        .meta-item span {
+          font-size: 0.9rem;
+          color: #eee;
+          font-weight: 500;
+        }
+
+        .path-code {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 0.7rem;
+          background: rgba(0,0,0,0.3);
+          padding: 0.2rem 0.5rem;
+          border-radius: 4px;
+          color: #00f2ff;
+          word-break: break-all;
+        }
+
+        .model-name-text { color: #9b40ff !important; }
+        .session-path-text { color: #aaa !important; font-size: 0.8rem !important; }
       `}</style>
     </div>
   );
