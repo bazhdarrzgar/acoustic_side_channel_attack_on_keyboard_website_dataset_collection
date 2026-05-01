@@ -45,7 +45,7 @@ async function walk(dir: string, base: string, entries: AudioEntry[]) {
 }
 
 export async function GET() {
-    const keyboardDir = path.join(process.cwd(), 'Keyboard');
+    const keyboardDir = path.join(process.cwd(), '..', 'Keyboard');
     const entries: AudioEntry[] = [];
 
     try {

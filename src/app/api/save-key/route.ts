@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const safeKey = keyMap[key] || key.replace(/[^a-z0-9]/gi, '_');
 
-    const folderPath = path.join(process.cwd(), 'Keyboard', safeModel, sessionTimestamp, `Key ${safeKey}`);
+    const folderPath = path.join(process.cwd(), '..', 'Keyboard', safeModel, sessionTimestamp, `Key ${safeKey}`);
     await fs.mkdir(folderPath, { recursive: true });
 
     const hashId = crypto.randomBytes(8).toString('hex');
@@ -78,14 +78,14 @@ export async function POST(req: NextRequest) {
       model: model,
       sessionTimestamp: sessionTimestamp,
       filename: fileName,
-      relativePath: path.relative(path.join(process.cwd(), 'Keyboard'), filePath).replace(/\\/g, '/'),
+      relativePath: path.relative(path.join(process.cwd(), '..', 'Keyboard'), filePath).replace(/\\/g, '/'),
       timestamp: new Date().toISOString(),
       press_time_seconds: parseFloat(pressTimeSeconds.toFixed(6))
     };
     await fs.writeFile(metaFilePath, JSON.stringify(metadata, null, 2));
 
     // Update master keyboard.json in Keyboard/ folder
-    const masterPath = path.join(process.cwd(), 'Keyboard', 'keyboard.json');
+    const masterPath = path.join(process.cwd(), '..', 'Keyboard', 'keyboard.json');
     let masterData = [];
     try {
       const content = await fs.readFile(masterPath, 'utf-8');

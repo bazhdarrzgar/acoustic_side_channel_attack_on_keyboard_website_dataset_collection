@@ -252,9 +252,14 @@ export default function Recorder() {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Disable default browser functionality for specific keys
+            if (['Tab', 'Meta'].includes(e.key) || (e.key.length > 1 && /^F(1[0-2]|[1-9])$/.test(e.key))) {
+                e.preventDefault();
+            }
+
             if (isRecording && !isPaused) {
                 // Prevent default for keys like Space or Arrow keys to avoid scrolling
-                if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
+                if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
                     e.preventDefault();
                 }
 
@@ -286,16 +291,16 @@ export default function Recorder() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--card-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <img
-                        src="/images/Harbin_Institute_of_Technology_(crest).gif"
-                        alt="HIT Logo"
+                        src="/images/wmremove-transformed.png"
+                        alt="Research Logo"
                         style={{ height: '50px', width: 'auto' }}
                     />
                     <div>
                         <h2 style={{ fontSize: '1.1rem', margin: 0, fontWeight: 700, color: 'var(--text)' }}>
-                            Harbin Institute of Technology
+                            Acoustic Intelligence Research
                         </h2>
                         <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.6 }}>
-                            哈尔滨工业大学 | Acoustic Signature Analysis
+                            Secure Systems Lab | Acoustic Signature Analysis
                         </p>
                     </div>
                 </div>
@@ -425,14 +430,42 @@ export default function Recorder() {
                                     </span>
                                 </div>
                                 <div style={{ fontSize: '0.6rem', opacity: 0.6, fontFamily: 'monospace' }}>
-                                    Saving to: Keyboard/{computerModel.replace(/[^a-z0-9]/gi, '_').toLowerCase()}/...
+                                    Saving to: ../Keyboard/{computerModel.replace(/[^a-z0-9]/gi, '_').toLowerCase()}/...
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    <div style={{ flex: 1, minHeight: '200px' }}>
+                    <div style={{ flex: 1, minHeight: '200px', position: 'relative' }}>
                         <Visualizer analyser={analyser} isRecording={isRecording} />
+                        
+                        {/* Typed Key Indicator Overlay */}
+                        <AnimatePresence>
+                            {activeKey && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 1.5, y: -20 }}
+                                    style={{
+                                        position: 'absolute',
+                                        top: '50%',
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        background: 'var(--primary)',
+                                        color: '#000',
+                                        padding: '1rem 2rem',
+                                        borderRadius: '12px',
+                                        fontSize: '3rem',
+                                        fontWeight: 900,
+                                        boxShadow: '0 0 30px var(--primary-glow)',
+                                        zIndex: 10,
+                                        pointerEvents: 'none'
+                                    }}
+                                >
+                                    {activeKey}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {/* 75% Keyboard Grid Preview */}
@@ -447,7 +480,8 @@ export default function Recorder() {
                             {[
                                 // Row 0
                                 [
-                                    { k: 'Esc', f: 1.2 }, { k: 'F1', f: 1 }, { k: 'F2', f: 1 }, { k: 'F3', f: 1 }, { k: 'F4', f: 1 },
+                                    { k: 'Esc', f: 1.2 }, 
+                                    { k: 'F1', f: 1 }, { k: 'F2', f: 1 }, { k: 'F3', f: 1 }, { k: 'F4', f: 1 },
                                     { k: 'F5', f: 1 }, { k: 'F6', f: 1 }, { k: 'F7', f: 1 }, { k: 'F8', f: 1 },
                                     { k: 'F9', f: 1 }, { k: 'F10', f: 1 }, { k: 'F11', f: 1 }, { k: 'F12', f: 1 },
                                     { k: 'Prt', f: 1 }, { k: 'Del', f: 1 }

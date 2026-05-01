@@ -9,11 +9,11 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Relative path is required' }, { status: 400 });
         }
 
-        const fullPath = path.join(process.cwd(), 'Keyboard', relativePath);
+        const fullPath = path.join(process.cwd(), '..', 'Keyboard', relativePath);
 
         // Security check: ensure the path is inside the Keyboard directory
         const resolvedPath = path.resolve(fullPath);
-        const keyboardPath = path.resolve(path.join(process.cwd(), 'Keyboard'));
+        const keyboardPath = path.resolve(path.join(process.cwd(), '..', 'Keyboard'));
 
         if (!resolvedPath.startsWith(keyboardPath)) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 });
@@ -30,7 +30,7 @@ export async function DELETE(request: Request) {
         }
 
         // Update master keyboard.json
-        const masterPath = path.join(process.cwd(), 'Keyboard', 'keyboard.json');
+        const masterPath = path.join(process.cwd(), '..', 'Keyboard', 'keyboard.json');
         try {
             const content = await fs.readFile(masterPath, 'utf-8');
             let masterData = JSON.parse(content);

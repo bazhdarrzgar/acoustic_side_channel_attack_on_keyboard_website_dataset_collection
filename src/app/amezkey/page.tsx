@@ -168,8 +168,8 @@ export default function AdminLogin() {
           position: fixed;
           inset: 0;
           background-image:
-            linear-gradient(rgba(0,242,255,0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,242,255,0.04) 1px, transparent 1px);
+            linear-gradient(rgba(222,102,45,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(222,102,45,0.04) 1px, transparent 1px);
           background-size: 60px 60px;
           animation: gridPan 20s linear infinite;
           pointer-events: none;
@@ -189,7 +189,7 @@ export default function AdminLogin() {
         }
         .orb-1 {
           width: 500px; height: 500px;
-          background: radial-gradient(circle, rgba(0,242,255,0.12) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(222,102,45,0.12) 0%, transparent 70%);
           top: -150px; left: -100px;
           animation-delay: 0s;
         }
@@ -220,13 +220,13 @@ export default function AdminLogin() {
           background: rgba(10,10,20,0.85);
           backdrop-filter: blur(30px);
           -webkit-backdrop-filter: blur(30px);
-          border: 1px solid rgba(0,242,255,0.15);
+          border: 1px solid rgba(222,102,45,0.15);
           border-radius: 28px;
           padding: 2.5rem;
           box-shadow:
-            0 0 0 1px rgba(0,242,255,0.05),
+            0 0 0 1px rgba(222,102,45,0.05),
             0 20px 60px rgba(0,0,0,0.6),
-            0 0 80px rgba(0,242,255,0.06);
+            0 0 80px rgba(222,102,45,0.06);
           opacity: 0;
           transform: translateY(24px) scale(0.97);
           transition: opacity 0.5s ease, transform 0.5s ease;
@@ -261,14 +261,14 @@ export default function AdminLogin() {
           width: 56px;
           height: 56px;
           border-radius: 16px;
-          background: linear-gradient(135deg, rgba(0,242,255,0.15), rgba(112,0,255,0.15));
-          border: 1px solid rgba(0,242,255,0.2);
+          background: linear-gradient(135deg, rgba(222,102,45,0.15), rgba(112,0,255,0.15));
+          border: 1px solid rgba(222,102,45,0.2);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #00f2ff;
+          color: #de662d;
           flex-shrink: 0;
-          box-shadow: 0 0 20px rgba(0,242,255,0.1);
+          box-shadow: 0 0 20px rgba(222,102,45,0.1);
         }
 
         .login-title {
@@ -293,9 +293,9 @@ export default function AdminLogin() {
           align-items: center;
           gap: 0.5rem;
           font-size: 0.72rem;
-          color: #00f2ff;
-          background: rgba(0,242,255,0.06);
-          border: 1px solid rgba(0,242,255,0.12);
+          color: #de662d;
+          background: rgba(222,102,45,0.06);
+          border: 1px solid rgba(222,102,45,0.12);
           border-radius: 8px;
           padding: 0.5rem 0.8rem;
           margin-bottom: 1.8rem;
@@ -306,14 +306,14 @@ export default function AdminLogin() {
           width: 7px;
           height: 7px;
           border-radius: 50%;
-          background: #00f2ff;
+          background: #de662d;
           animation: badgePulse 2s ease-in-out infinite;
           flex-shrink: 0;
         }
 
         @keyframes badgePulse {
-          0%, 100% { opacity: 1; box-shadow: 0 0 4px #00f2ff; }
-          50% { opacity: 0.5; box-shadow: 0 0 8px #00f2ff; }
+          0%, 100% { opacity: 1; box-shadow: 0 0 4px #de662d; }
+          50% { opacity: 0.5; box-shadow: 0 0 8px #de662d; }
         }
 
         .login-form {
@@ -357,9 +357,9 @@ export default function AdminLogin() {
         }
 
         .field-input:focus {
-          border-color: rgba(0,242,255,0.4);
-          background: rgba(0,242,255,0.04);
-          box-shadow: 0 0 0 3px rgba(0,242,255,0.08), 0 0 15px rgba(0,242,255,0.06);
+          border-color: rgba(222,102,45,0.4);
+          background: rgba(222,102,45,0.04);
+          box-shadow: 0 0 0 3px rgba(222,102,45,0.08), 0 0 15px rgba(222,102,45,0.06);
         }
 
         .field-input--error {
@@ -392,7 +392,7 @@ export default function AdminLogin() {
           transition: color 0.2s;
         }
 
-        .pw-toggle:hover { color: #00f2ff; }
+        .pw-toggle:hover { color: #de662d; }
 
         .error-banner {
           display: flex;

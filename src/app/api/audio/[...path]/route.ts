@@ -7,10 +7,10 @@ export async function GET(
     { params }: { params: Promise<{ path: string[] }> }
 ) {
     const { path: pathParts } = await params;
-    const filePath = path.join(process.cwd(), 'Keyboard', ...pathParts);
+    const filePath = path.join(process.cwd(), '..', 'Keyboard', ...pathParts);
 
     // Security: ensure file is within Keyboard directory
-    const keyboardDir = path.join(process.cwd(), 'Keyboard');
+    const keyboardDir = path.resolve(path.join(process.cwd(), '..', 'Keyboard'));
     const resolved = path.resolve(filePath);
     if (!resolved.startsWith(keyboardDir)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

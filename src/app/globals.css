@@ -1,8 +1,8 @@
 :root {
   --background: #0a0a0a;
   --foreground: #ededed;
-  --primary: #00f2ff;
-  --primary-glow: rgba(0, 242, 255, 0.3);
+  --primary: #de662d;
+  --primary-glow: rgba(222, 102, 45, 0.3);
   --secondary: #7000ff;
   --secondary-glow: rgba(112, 0, 255, 0.3);
   --accent: #ff00c8;
@@ -18,8 +18,8 @@
 [data-theme='light'] {
   --background: #f5f5f7;
   --foreground: #1d1d1f;
-  --primary: #0071e3;
-  --primary-glow: rgba(0, 113, 227, 0.2);
+  --primary: #de662d;
+  --primary-glow: rgba(222, 102, 45, 0.2);
   --secondary: #5e5ce6;
   --secondary-glow: rgba(94, 92, 230, 0.2);
   --accent: #bf5af2;
@@ -279,7 +279,7 @@ h1 {
 }
 
 .admin-link:hover {
-  color: #00f2ff !important;
-  border-color: rgba(0, 242, 255, 0.25) !important;
-  background: rgba(0, 242, 255, 0.05) !important;
+  color: #de662d !important;
+  border-color: rgba(222, 102, 45, 0.25) !important;
+  background: rgba(222, 102, 45, 0.05) !important;
 }

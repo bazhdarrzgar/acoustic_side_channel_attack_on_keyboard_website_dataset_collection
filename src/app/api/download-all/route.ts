@@ -4,7 +4,7 @@ import path from 'path';
 import archiver from 'archiver';
 
 export async function GET(_req: NextRequest) {
-    const keyboardDir = path.join(process.cwd(), 'Keyboard');
+    const keyboardDir = path.join(process.cwd(), '..', 'Keyboard');
 
     if (!fs.existsSync(keyboardDir)) {
         return NextResponse.json({ error: 'Keyboard directory not found' }, { status: 404 });

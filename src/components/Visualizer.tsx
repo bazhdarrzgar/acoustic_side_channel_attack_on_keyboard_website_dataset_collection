@@ -34,7 +34,7 @@ export default function Visualizer({ analyser, isRecording }: VisualizerProps) {
             ctx.lineWidth = 3;
 
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-            gradient.addColorStop(0, '#00f2ff');
+            gradient.addColorStop(0, '#de662d');
             gradient.addColorStop(0.5, '#7000ff');
             gradient.addColorStop(1, '#ff00c8');
 

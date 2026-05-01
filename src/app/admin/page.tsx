@@ -46,19 +46,21 @@ function formatDate(iso: string): string {
 interface TreeFolder {
   name: string;
   type: 'folder';
+  path: string;
   children: (TreeFolder | TreeFile)[];
 }
 
 interface TreeFile {
   name: string;
   type: 'file';
+  path: string;
   entry: AudioEntry;
 }
 
 type TreeItem = TreeFolder | TreeFile;
 
 function buildTree(entries: AudioEntry[]): TreeFolder {
-  const root: TreeFolder = { name: 'Keyboard', type: 'folder', children: [] };
+  const root: TreeFolder = { name: 'Keyboard', type: 'folder', path: '', children: [] };
 
   entries.forEach(entry => {
     const parts = entry.relativePath.split('/');
@@ -68,12 +70,14 @@ function buildTree(entries: AudioEntry[]): TreeFolder {
       const isLast = index === parts.length - 1;
       let existing = current.children.find(child => child.name === part);
 
+      const currentPath = parts.slice(0, index + 1).join('/');
+
       if (!existing) {
         if (isLast) {
-          const file: TreeFile = { name: part, type: 'file', entry };
+          const file: TreeFile = { name: part, type: 'file', path: currentPath, entry };
           current.children.push(file);
         } else {
-          const folder: TreeFolder = { name: part, type: 'folder', children: [] };
+          const folder: TreeFolder = { name: part, type: 'folder', path: currentPath, children: [] };
           current.children.push(folder);
           current = folder;
         }
@@ -144,7 +148,7 @@ function TrackAnalysis({ entry, onRemove, onDelete, globalTrigger }: { entry: Au
 
     const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
     grad.addColorStop(0, '#ff00c8');
-    grad.addColorStop(0.5, '#00f2ff');
+    grad.addColorStop(0.5, '#de662d');
     grad.addColorStop(1, '#ff00c8');
     ctx.strokeStyle = grad;
     ctx.lineWidth = 1.5;
@@ -604,16 +608,68 @@ function CleaningModule({ allEntries, setSelectedFiles, stats: globalStats, form
 
 
 
-function TreeNode({ node, depth, onSelect, selectedId }: { node: TreeItem, depth: number, onSelect: (e: AudioEntry) => void, selectedId?: string }) {
+function TreeNode({ node, depth, onSelect, selectedId, onMove, onDeleteFolder }: {
+  node: TreeItem,
+  depth: number,
+  onSelect: (e: AudioEntry) => void,
+  selectedId?: string,
+  onMove: (sourcePath: string, targetParentPath: string) => void,
+  onDeleteFolder: (path: string) => void
+}) {
   const [isOpen, setIsOpen] = useState(depth < 2);
+  const [isDragOver, setIsDragOver] = useState(false);
   const isSelected = node.type === 'file' && node.entry.relativePath === selectedId;
+
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', node.path);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (node.type === 'folder') {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const sourcePath = e.dataTransfer.getData('text/plain');
+    if (!sourcePath || sourcePath === node.path) return;
+
+    // Determine target parent path
+    let targetParentPath = '';
+    if (node.type === 'folder') {
+      targetParentPath = node.path;
+    } else {
+      // If dropped on a file, move to the same parent folder
+      const parts = node.path.split('/');
+      parts.pop();
+      targetParentPath = parts.join('/');
+    }
+
+    onMove(sourcePath, targetParentPath);
+  };
 
   if (node.type === 'file') {
     return (
       <div
-        className={`tree-node tree-file ${isSelected ? 'active' : ''}`}
+        className={`tree-node tree-file ${isSelected ? 'active' : ''} ${isDragOver ? 'drag-over' : ''}`}
         style={{ paddingLeft: `${depth * 1.2}rem` }}
         onClick={() => onSelect(node.entry)}
+        draggable
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <Music size={14} className="node-icon" />
         <span className="node-name">{node.name}</span>
@@ -622,17 +678,34 @@ function TreeNode({ node, depth, onSelect, selectedId }: { node: TreeItem, depth
   }
 
   return (
-    <div className="tree-folder-group">
+    <div className={`tree-folder-group ${isDragOver ? 'drag-over' : ''}`}>
       <div
         className="tree-node tree-folder"
         style={{ paddingLeft: `${depth * 1.2}rem` }}
         onClick={() => setIsOpen(!isOpen)}
+        draggable
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <div className="chevron-wrap">
           {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </div>
         <Folder size={14} className="node-icon" />
         <span className="node-name">{node.name}</span>
+        {node.path !== '' && (
+          <button 
+            className="node-delete-btn" 
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteFolder(node.path);
+            }}
+            title="Delete Folder"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
       {isOpen && (
         <div className="tree-children">
@@ -642,7 +715,7 @@ function TreeNode({ node, depth, onSelect, selectedId }: { node: TreeItem, depth
               return a.name.localeCompare(b.name);
             })
             .map((child, i) => (
-              <TreeNode key={i} node={child} depth={depth + 1} onSelect={onSelect} selectedId={selectedId} />
+              <TreeNode key={i} node={child} depth={depth + 1} onSelect={onSelect} selectedId={selectedId} onMove={onMove} onDeleteFolder={onDeleteFolder} />
             ))
           }
         </div>
@@ -651,28 +724,81 @@ function TreeNode({ node, depth, onSelect, selectedId }: { node: TreeItem, depth
   );
 }
 
-function TreeModule({ entries, formatBytes, formatDate, onDelete }: {
+function TreeModule({ entries, formatBytes, formatDate, onDelete, onRefresh }: {
   entries: AudioEntry[];
   formatBytes: (b: number) => string;
   formatDate: (iso: string) => string;
   onDelete: (e: React.MouseEvent, entry: AudioEntry) => void;
+  onRefresh: () => void;
 }) {
   const [selectedEntry, setSelectedEntry] = useState<AudioEntry | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
   const tree = buildTree(entries);
 
+  const handleMove = async (sourcePath: string, targetParentPath: string) => {
+    if (isMoving) return;
+    setIsMoving(true);
+    try {
+      const res = await fetch('/api/move-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourcePath, targetParentPath }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        onRefresh();
+        // If the selected entry was moved, update its path or clear selection
+        if (selectedEntry?.relativePath === sourcePath) {
+          setSelectedEntry(null);
+        }
+      } else {
+        alert(data.error || 'Failed to move item');
+      }
+    } catch (err) {
+      alert('Error moving item');
+    } finally {
+      setIsMoving(false);
+    }
+  };
+
+  const handleFolderDelete = async (folderPath: string) => {
+    
+    try {
+      const res = await fetch('/api/delete-folder', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderPath }),
+      });
+
+      if (res.ok) {
+        onRefresh();
+        // Clear selection if the selected file was inside the deleted folder
+        if (selectedEntry?.relativePath.startsWith(folderPath)) {
+          setSelectedEntry(null);
+        }
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete folder');
+      }
+    } catch (err) {
+      alert('Error deleting folder');
+    }
+  };
+
   return (
-    <div className="tree-module animate-in">
+    <div className={`tree-module animate-in ${isMoving ? 'pointer-events-none opacity-60' : ''}`}>
       <div className="module-header">
         <div>
           <h2 className="module-title">Dataset Explorer</h2>
-          <p className="module-subtitle">Hierarchical view of the keyboard dataset</p>
+          <p className="module-subtitle">Hierarchical view (Drag and Drop to move files/folders)</p>
         </div>
       </div>
 
       <div className="tree-layout">
         <aside className="tree-explorer">
           <div className="tree-scroll">
-            <TreeNode node={tree} depth={0} onSelect={setSelectedEntry} selectedId={selectedEntry?.relativePath} />
+            <TreeNode node={tree} depth={0} onSelect={setSelectedEntry} selectedId={selectedEntry?.relativePath} onMove={handleMove} onDeleteFolder={handleFolderDelete} />
           </div>
         </aside>
 
@@ -768,7 +894,7 @@ function AudioPlayer({ entry, onClose }: { entry: AudioEntry; onClose: () => voi
       const y = canvas.height - barH;
 
       const grad = ctx.createLinearGradient(x, y, x, canvas.height);
-      grad.addColorStop(0, `rgba(0,242,255,${0.4 + value * 0.6})`);
+      grad.addColorStop(0, `rgba(222,102,45,${0.4 + value * 0.6})`);
       grad.addColorStop(1, `rgba(112,0,255,${0.2 + value * 0.4})`);
 
       ctx.fillStyle = grad;
@@ -972,7 +1098,6 @@ export default function AdminDashboard() {
 
   const handleDelete = async (e: React.MouseEvent, entry: AudioEntry) => {
     e.stopPropagation();
-    if (!confirm(`Are you sure you want to delete ${entry.filename}?`)) return;
 
     try {
       const res = await fetch('/api/delete-audio', {
@@ -1075,7 +1200,7 @@ export default function AdminDashboard() {
           >
             <Wand2 size={18} />
             <span>Audio Cleaning</span>
-            {selectedFiles.length > 0 && <span className="nav-badge nav-badge--cyan" style={{ background: 'rgba(0, 242, 255, 0.1)', color: '#00f2ff' }}>{selectedFiles.length}</span>}
+            {selectedFiles.length > 0 && <span className="nav-badge nav-badge--cyan" style={{ background: 'rgba(222, 102, 45, 0.1)', color: '#de662d' }}>{selectedFiles.length}</span>}
           </button>
           <button
             className={`nav-item ${activeSection === 'tree' ? 'nav-item--active' : ''}`}
@@ -1113,7 +1238,7 @@ export default function AdminDashboard() {
             <div style={{ display: 'flex', gap: '0.8rem' }}>
               <button
                 className="btn-action btn-action--primary"
-                style={{ background: 'rgba(0, 242, 255, 0.1)', color: '#00f2ff', border: '1px solid rgba(0, 242, 255, 0.2)' }}
+                style={{ background: 'rgba(222, 102, 45, 0.1)', color: '#de662d', border: '1px solid rgba(222, 102, 45, 0.2)' }}
                 onClick={() => {
                   window.location.href = '/api/download-all';
                 }}
@@ -1460,6 +1585,7 @@ export default function AdminDashboard() {
                 formatBytes={formatBytes}
                 formatDate={formatDate}
                 onDelete={handleDelete}
+                onRefresh={fetchData}
               />
             </div>
           )}
@@ -1525,7 +1651,7 @@ export default function AdminDashboard() {
           inset: 0;
           background: 
             radial-gradient(circle at 0% 0%, rgba(112,0,255,0.08) 0%, transparent 40%),
-            radial-gradient(circle at 100% 100%, rgba(0,242,255,0.08) 0%, transparent 40%);
+            radial-gradient(circle at 100% 100%, rgba(222,102,45,0.08) 0%, transparent 40%);
           pointer-events: none;
         }
 
@@ -1557,12 +1683,12 @@ export default function AdminDashboard() {
           width: 38px;
           height: 38px;
           border-radius: 10px;
-          background: linear-gradient(135deg, rgba(0,242,255,0.2), rgba(112,0,255,0.2));
-          border: 1px solid rgba(0,242,255,0.15);
+          background: linear-gradient(135deg, rgba(222,102,45,0.2), rgba(112,0,255,0.2));
+          border: 1px solid rgba(222,102,45,0.15);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #00f2ff;
+          color: #de662d;
           flex-shrink: 0;
         }
 
@@ -1610,21 +1736,21 @@ export default function AdminDashboard() {
         }
 
         .nav-item--active {
-          background: linear-gradient(90deg, rgba(0,242,255,0.1), transparent) !important;
-          color: #00f2ff !important;
-          border-left: 2px solid #00f2ff;
+          background: linear-gradient(90deg, rgba(222,102,45,0.1), transparent) !important;
+          color: #de662d !important;
+          border-left: 2px solid #de662d;
           border-radius: 0 10px 10px 0;
         }
 
         .nav-badge {
           margin-left: auto;
-          background: rgba(0,242,255,0.1);
-          color: #00f2ff;
+          background: rgba(222,102,45,0.1);
+          color: #de662d;
           font-size: 0.62rem;
           font-weight: 800;
           padding: 0.25rem 0.6rem;
           border-radius: 8px;
-          border: 1px solid rgba(0,242,255,0.15);
+          border: 1px solid rgba(222,102,45,0.15);
         }
 
         .sidebar-footer {
@@ -1706,12 +1832,12 @@ export default function AdminDashboard() {
         .header-badge {
           display: inline-block;
           padding: 0.3rem 0.8rem;
-          background: rgba(0,242,255,0.06);
-          border: 1px solid rgba(0,242,255,0.15);
+          background: rgba(222,102,45,0.06);
+          border: 1px solid rgba(222,102,45,0.15);
           border-radius: 99px;
           font-size: 0.65rem;
           font-weight: 700;
-          color: #00f2ff;
+          color: #de662d;
           text-transform: uppercase;
           letter-spacing: 0.1em;
           margin-bottom: 0.8rem;
@@ -1740,7 +1866,7 @@ export default function AdminDashboard() {
           font-family: inherit;
         }
 
-        .refresh-btn:hover:not(:disabled) { color: #00f2ff; border-color: rgba(0,242,255,0.3); }
+        .refresh-btn:hover:not(:disabled) { color: #de662d; border-color: rgba(222,102,45,0.3); }
         .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .spin { animation: spin 1s linear infinite; }
@@ -1790,7 +1916,7 @@ export default function AdminDashboard() {
           box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
-        .stat-icon--cyan { background: rgba(0,242,255,0.1); color: #00f2ff; }
+        .stat-icon--cyan { background: rgba(222,102,45,0.1); color: #de662d; }
         .stat-icon--purple { background: rgba(112,0,255,0.1); color: #9b40ff; }
         .stat-icon--pink { background: rgba(255,0,200,0.1); color: #ff40d4; }
         .stat-icon--green { background: rgba(0,255,136,0.1); color: #00ff88; }
@@ -1833,7 +1959,7 @@ export default function AdminDashboard() {
           align-items: center;
           gap: 0.8rem;
           margin-bottom: 1.5rem;
-          color: #00f2ff;
+          color: #de662d;
         }
 
         .detail-card-header h3 {
@@ -1847,7 +1973,7 @@ export default function AdminDashboard() {
           margin-left: auto;
           background: none;
           border: none;
-          color: #00f2ff;
+          color: #de662d;
           font-size: 0.75rem;
           cursor: pointer;
           display: flex;
@@ -1952,7 +2078,7 @@ export default function AdminDashboard() {
           transition: width 0.6s ease;
         }
 
-        .key-bar-val { font-size: 0.65rem; color: #00f2ff; font-weight: 700; }
+        .key-bar-val { font-size: 0.65rem; color: #de662d; font-weight: 700; }
 
         /* File Table */
         .file-table { display: flex; flex-direction: column; }
@@ -1971,13 +2097,13 @@ export default function AdminDashboard() {
         .file-table--overview .file-table-head,
         .file-table--overview .file-row {
           display: grid;
-          grid-template-columns: 60px 80px 1.5fr 2.5fr 110px 160px 60px 60px;
+          grid-template-columns: 60px 110px 1.5fr 2.5fr 110px 160px 60px 60px;
         }
  
         .file-table--files .file-table-head,
         .file-table--files .file-row {
           display: grid;
-          grid-template-columns: 60px 80px 1.2fr 1.8fr 1.5fr 100px 150px 60px 60px;
+          grid-template-columns: 60px 110px 1.2fr 1.8fr 1.5fr 100px 150px 60px 60px;
         }
 
         .file-delete-btn {
@@ -2004,8 +2130,8 @@ export default function AdminDashboard() {
 
 
         .file-row--selected {
-          background: rgba(0, 242, 255, 0.04) !important;
-          border-color: rgba(0, 242, 255, 0.2) !important;
+          background: rgba(222, 102, 45, 0.04) !important;
+          border-color: rgba(222, 102, 45, 0.2) !important;
         }
 
         .file-row-select {
@@ -2024,9 +2150,9 @@ export default function AdminDashboard() {
         }
 
         .checkbox--active {
-          background: #00f2ff;
-          border-color: #00f2ff;
-          box-shadow: 0 0 10px rgba(0, 242, 255, 0.4);
+          background: #de662d;
+          border-color: #de662d;
+          box-shadow: 0 0 10px rgba(222, 102, 45, 0.4);
         }
 
         .checkbox--active::after {
@@ -2076,8 +2202,8 @@ export default function AdminDashboard() {
         }
 
         .btn-action:hover { background: rgba(255,255,255,0.08); color: #ccc; }
-        .btn-action--primary { background: rgba(0,242,255,0.1); border-color: rgba(0,242,255,0.2); color: #00f2ff; }
-        .btn-action--primary:hover { background: rgba(0,242,255,0.15); color: #00f2ff; }
+        .btn-action--primary { background: rgba(222,102,45,0.1); border-color: rgba(222,102,45,0.2); color: #de662d; }
+        .btn-action--primary:hover { background: rgba(222,102,45,0.15); color: #de662d; }
 
         .module-empty {
           display: flex;
@@ -2114,7 +2240,7 @@ export default function AdminDashboard() {
         .track-info { display: flex; align-items: center; gap: 1rem; }
         .track-key {
           padding: 0.3rem 0.8rem;
-          background: #00f2ff;
+          background: #de662d;
           color: #000;
           border-radius: 8px;
           font-weight: 800;
@@ -2153,7 +2279,7 @@ export default function AdminDashboard() {
           transition: all 0.2s;
         }
         .track-btn:hover { background: rgba(255,255,255,0.1); color: #ccc; }
-        .track-btn.active { color: #00f2ff; border-color: rgba(0,242,255,0.3); }
+        .track-btn.active { color: #de662d; border-color: rgba(222,102,45,0.3); }
         .track-btn--delete:hover { background: rgba(255,51,102,0.1); color: #ff3366; border-color: rgba(255,51,102,0.2); }
         .track-btn--close:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
@@ -2214,8 +2340,8 @@ export default function AdminDashboard() {
         }
 
         .toggle-btn.active {
-          background: rgba(0,242,255,0.1);
-          color: #00f2ff;
+          background: rgba(222,102,45,0.1);
+          color: #de662d;
         }
 
         .toggle-btn:hover:not(.active) {
@@ -2232,13 +2358,13 @@ export default function AdminDashboard() {
           background: rgba(10,10,25,0.9);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(0,242,255,0.3);
+          border: 1px solid rgba(222,102,45,0.3);
           border-radius: 20px;
           padding: 1.2rem 2rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 0 30px rgba(0,242,255,0.1);
+          box-shadow: 0 10px 40px rgba(0,0,0,0.4), 0 0 30px rgba(222,102,45,0.1);
           z-index: 100;
           margin-top: 2rem;
         }
@@ -2247,7 +2373,7 @@ export default function AdminDashboard() {
         .selection-count {
           width: 40px;
           height: 40px;
-          background: #00f2ff;
+          background: #de662d;
           color: #000;
           border-radius: 12px;
           display: flex;
@@ -2280,12 +2406,12 @@ export default function AdminDashboard() {
         }
         .selection-btn--ghost:hover { background: rgba(255,255,255,0.05); color: #ccc; }
         .selection-btn--primary {
-          background: #00f2ff;
+          background: #de662d;
           border: none;
           color: #000;
-          box-shadow: 0 4px 15px rgba(0,242,255,0.2);
+          box-shadow: 0 4px 15px rgba(222,102,45,0.2);
         }
-        .selection-btn--primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,242,255,0.35); }
+        .selection-btn--primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(222,102,45,0.35); }
 
         .loading-overlay {
           position: absolute;
@@ -2296,7 +2422,7 @@ export default function AdminDashboard() {
           align-items: center;
           justify-content: center;
           gap: 0.8rem;
-          color: #00f2ff;
+          color: #de662d;
           font-size: 0.8rem;
           backdrop-filter: blur(4px);
         }
@@ -2328,9 +2454,9 @@ export default function AdminDashboard() {
         }
 
         .batch-btn:hover:not(:disabled) {
-           background: rgba(0,242,255,0.1);
-           color: #00f2ff;
-           border-color: rgba(0,242,255,0.3);
+           background: rgba(222,102,45,0.1);
+           color: #de662d;
+           border-color: rgba(222,102,45,0.3);
            transform: translateY(-2px);
         }
 
@@ -2361,21 +2487,22 @@ export default function AdminDashboard() {
         }
 
         .file-row:hover {
-          background: rgba(0,242,255,0.04);
-          border-color: rgba(0,242,255,0.1);
+          background: rgba(222,102,45,0.04);
+          border-color: rgba(222,102,45,0.1);
         }
 
         .file-key-badge {
-          background: rgba(0,242,255,0.1);
-          color: #00f2ff;
+          background: rgba(222,102,45,0.1);
+          color: #de662d;
           font-size: 0.75rem;
           font-weight: 800;
           padding: 0.3rem 0.7rem;
           border-radius: 8px;
-          border: 1px solid rgba(0,242,255,0.2);
+          border: 1px solid rgba(222,102,45,0.2);
           display: inline-block;
           text-align: center;
-          width: 50px;
+          min-width: 50px;
+          width: fit-content;
         }
 
         .file-model, .file-session { color: #777; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 0.5rem; }
@@ -2395,10 +2522,10 @@ export default function AdminDashboard() {
           align-items: center;
           justify-content: center;
           gap: 0.3rem;
-          background: rgba(0,242,255,0.08);
-          border: 1px solid rgba(0,242,255,0.15);
+          background: rgba(222,102,45,0.08);
+          border: 1px solid rgba(222,102,45,0.15);
           border-radius: 8px;
-          color: #00f2ff;
+          color: #de662d;
           padding: 0.4rem;
           cursor: pointer;
           transition: all 0.2s;
@@ -2407,7 +2534,7 @@ export default function AdminDashboard() {
         }
 
         .file-play-btn:hover {
-          background: rgba(0,242,255,0.15);
+          background: rgba(222,102,45,0.15);
           transform: scale(1.05);
         }
 
@@ -2422,7 +2549,7 @@ export default function AdminDashboard() {
         .wf-bar {
           width: 2px;
           height: 4px;
-          background: #00f2ff;
+          background: #de662d;
           border-radius: 1px;
           opacity: 0.4;
         }
@@ -2462,8 +2589,8 @@ export default function AdminDashboard() {
         }
 
         .search-wrap:focus-within {
-          border-color: rgba(0,242,255,0.3);
-          color: #00f2ff;
+          border-color: rgba(222,102,45,0.3);
+          color: #de662d;
         }
 
         .filter-input {
@@ -2582,7 +2709,7 @@ export default function AdminDashboard() {
         .rows-picker select {
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.1);
-          color: #00f2ff;
+          color: #de662d;
           padding: 0.3rem 0.6rem;
           border-radius: 8px;
           outline: none;
@@ -2608,9 +2735,9 @@ export default function AdminDashboard() {
         }
 
         .page-btn:hover:not(:disabled) {
-          background: rgba(0,242,255,0.06);
-          color: #00f2ff;
-          border-color: rgba(0,242,255,0.25);
+          background: rgba(222,102,45,0.06);
+          color: #de662d;
+          border-color: rgba(222,102,45,0.25);
         }
 
         .page-btn:disabled {
@@ -2662,10 +2789,10 @@ export default function AdminDashboard() {
           max-width: 500px;
           margin: 1rem;
           background: rgba(10,10,22,0.97);
-          border: 1px solid rgba(0,242,255,0.15);
+          border: 1px solid rgba(222,102,45,0.15);
           border-radius: 24px;
           padding: 1.8rem;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 60px rgba(0,242,255,0.06);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 60px rgba(222,102,45,0.06);
           animation: slideUp 0.25s ease;
         }
 
@@ -2702,12 +2829,12 @@ export default function AdminDashboard() {
           width: 44px;
           height: 44px;
           border-radius: 12px;
-          background: rgba(0,242,255,0.08);
-          border: 1px solid rgba(0,242,255,0.15);
+          background: rgba(222,102,45,0.08);
+          border: 1px solid rgba(222,102,45,0.15);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #00f2ff;
+          color: #de662d;
           flex-shrink: 0;
         }
 
@@ -2717,7 +2844,7 @@ export default function AdminDashboard() {
           font-weight: 600;
         }
 
-        .player-key strong { color: #00f2ff; }
+        .player-key strong { color: #de662d; }
 
         .player-meta { font-size: 0.72rem; color: #555; margin-top: 0.15rem; }
 
@@ -2770,8 +2897,8 @@ export default function AdminDashboard() {
           height: 44px;
           border-radius: 12px;
           background: linear-gradient(135deg, rgba(0,200,255,0.15), rgba(112,0,255,0.15));
-          border: 1px solid rgba(0,242,255,0.2);
-          color: #00f2ff;
+          border: 1px solid rgba(222,102,45,0.2);
+          color: #de662d;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -2817,7 +2944,7 @@ export default function AdminDashboard() {
           width: 12px;
           height: 12px;
           border-radius: 50%;
-          background: #00f2ff;
+          background: #de662d;
           cursor: pointer;
         }
 
@@ -2866,9 +2993,14 @@ export default function AdminDashboard() {
         }
 
         .tree-node.active {
-          background: rgba(0,242,255,0.1);
-          color: #00f2ff;
-          border-left: 2px solid #00f2ff;
+          background: rgba(222,102,45,0.1);
+          color: #de662d;
+          border-left: 2px solid #de662d;
+        }
+
+        .tree-node.drag-over, .tree-folder-group.drag-over > .tree-node {
+          background: rgba(222,102,45,0.2) !important;
+          border: 1px dashed #de662d !important;
         }
 
         .node-icon { opacity: 0.6; }
@@ -2886,6 +3018,30 @@ export default function AdminDashboard() {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          flex: 1;
+        }
+
+        .node-delete-btn {
+          opacity: 0;
+          background: none;
+          border: none;
+          color: #666;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+
+        .tree-node:hover .node-delete-btn {
+          opacity: 1;
+        }
+
+        .node-delete-btn:hover {
+          background: rgba(255, 51, 102, 0.1);
+          color: #ff3366;
         }
 
         .tree-detail {
@@ -2925,7 +3081,7 @@ export default function AdminDashboard() {
           background: rgba(0,0,0,0.3);
           padding: 0.2rem 0.5rem;
           border-radius: 4px;
-          color: #00f2ff;
+          color: #de662d;
           word-break: break-all;
         }
 
