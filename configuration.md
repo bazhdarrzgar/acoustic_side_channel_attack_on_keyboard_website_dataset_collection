@@ -18,5 +18,6 @@ CTRL + A  &  CTRL + D
 ssh root@206.206.76.143
 
 
+cd /home/project_amez/amez
 git clone https://github.com/bazhdarrzgar/acoustic_side_channel_attack_on_keyboard_website_dataset_collection
 

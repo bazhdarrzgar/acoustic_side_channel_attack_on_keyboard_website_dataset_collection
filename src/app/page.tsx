@@ -7,7 +7,7 @@ export default function Home() {
 
       <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
         <p style={{ opacity: 0.5, textAlign: 'center', fontSize: '0.7rem' }}>
-          Acoustic Signature Analysis v1.0.0 @ Harbin Institute of Technology
+          Acoustic Signature Analysis v1.2.0 @ Acoustic Intelligence Research
         </p>
       </div>
     </main>

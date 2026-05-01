@@ -241,44 +241,59 @@ export default function Recorder() {
         }, 550); // slightly more than 500ms to be safe
     }, [isRecording, computerModel, sessionStartTime, isPaused]);
 
-    const normalizeKey = (key: string) => {
+    const normalizeKey = (key: string, code: string) => {
         let k = key;
-        if (k === ' ') k = 'Space';
-        else if (k === 'ArrowUp') k = 'Up';
-        else if (k === 'ArrowDown') k = 'Down';
-        else if (k === 'ArrowLeft') k = 'Left';
-        else if (k === 'ArrowRight') k = 'Right';
-        else if (k === 'Control') k = 'Ctrl';
-        else if (k === 'Meta') k = 'Win';
-        else if (k === 'PageUp') k = 'PgUp';
-        else if (k === 'PageDown') k = 'PgDn';
-        else if (k === 'PrintScreen') k = 'Prt';
-        else if (k === 'CapsLock') k = 'Caps';
-        else if (k === 'Escape') k = 'Esc';
-        else if (k === 'Delete') k = 'Del';
-        // Map shifted symbols to their base keys for GUI highlighting
-        else if (k === '!') k = '1';
-        else if (k === '@') k = '2';
-        else if (k === '#') k = '3';
-        else if (k === '$') k = '4';
-        else if (k === '%') k = '5';
-        else if (k === '^') k = '6';
-        else if (k === '&') k = '7';
-        else if (k === '*') k = '8';
-        else if (k === '(') k = '9';
-        else if (k === ')') k = '0';
-        else if (k === '_') k = '-';
-        else if (k === '+') k = '=';
-        else if (k === '{') k = '[';
-        else if (k === '}') k = ']';
-        else if (k === '|') k = '\\';
-        else if (k === ':') k = ';';
-        else if (k === '"') k = "'";
-        else if (k === '<') k = ',';
-        else if (k === '>') k = '.';
-        else if (k === '?') k = '/';
-        else if (k === '~') k = '`';
+        
+        // Use exact code mappings for cross-device consistency where possible
+        if (code === 'Space' || k === ' ') k = 'Space';
+        else if (code === 'ArrowUp' || k === 'ArrowUp') k = 'Up';
+        else if (code === 'ArrowDown' || k === 'ArrowDown') k = 'Down';
+        else if (code === 'ArrowLeft' || k === 'ArrowLeft') k = 'Left';
+        else if (code === 'ArrowRight' || k === 'ArrowRight') k = 'Right';
+        else if (code?.startsWith('Control') || k === 'Control') k = 'Ctrl';
+        else if (code?.startsWith('Meta') || code?.startsWith('OS') || k === 'Meta' || k === 'OS' || k === 'Command') k = 'Win';
+        else if (code?.startsWith('Alt') || k === 'Alt' || k === 'AltGraph') k = 'Alt';
+        else if (code?.startsWith('Shift') || k === 'Shift') k = 'Shift';
+        else if (code === 'PageUp' || k === 'PageUp') k = 'PgUp';
+        else if (code === 'PageDown' || k === 'PageDown') k = 'PgDn';
+        else if (code === 'PrintScreen' || k === 'PrintScreen') k = 'Prt';
+        else if (code === 'CapsLock' || k === 'CapsLock') k = 'Caps';
+        else if (code === 'Escape' || k === 'Escape') k = 'Esc';
+        else if (code === 'Delete' || k === 'Delete') k = 'Del';
+        else if (code === 'Backspace' || k === 'Backspace') k = 'Backspace';
+        else if (code === 'Enter' || code === 'NumpadEnter' || k === 'Enter') k = 'Enter';
+        else if (code === 'Tab' || k === 'Tab') k = 'Tab';
+        else if (code === 'Home' || k === 'Home') k = 'Home';
+        else if (code === 'End' || k === 'End') k = 'End';
+        
+        // Map symbols to their base keys for GUI highlighting using code to be layout-agnostic
+        else if (code === 'Digit1' || k === '!') k = '1';
+        else if (code === 'Digit2' || k === '@') k = '2';
+        else if (code === 'Digit3' || k === '#') k = '3';
+        else if (code === 'Digit4' || k === '$') k = '4';
+        else if (code === 'Digit5' || k === '%') k = '5';
+        else if (code === 'Digit6' || k === '^') k = '6';
+        else if (code === 'Digit7' || k === '&') k = '7';
+        else if (code === 'Digit8' || k === '*') k = '8';
+        else if (code === 'Digit9' || k === '(') k = '9';
+        else if (code === 'Digit0' || k === ')') k = '0';
+        else if (code === 'Minus' || k === '_' || k === '-') k = '-';
+        else if (code === 'Equal' || k === '+' || k === '=') k = '=';
+        else if (code === 'BracketLeft' || k === '{' || k === '[') k = '[';
+        else if (code === 'BracketRight' || k === '}' || k === ']') k = ']';
+        else if (code === 'Backslash' || k === '|' || k === '\\') k = '\\';
+        else if (code === 'Semicolon' || k === ':' || k === ';') k = ';';
+        else if (code === 'Quote' || k === '"' || k === "'") k = "'";
+        else if (code === 'Comma' || k === '<' || k === ',') k = ',';
+        else if (code === 'Period' || k === '>' || k === '.') k = '.';
+        else if (code === 'Slash' || k === '?' || k === '/') k = '/';
+        else if (code === 'Backquote' || k === '~' || k === '`') k = '`';
         else if (k === 'Fn' || k === 'Function') k = 'Fn';
+        
+        // Map letters and function keys
+        else if (code && code.startsWith('Key')) k = code.replace('Key', '');
+        else if (code && code.match(/^F[1-9][0-2]?$/)) k = code;
+        
         else if (k.length === 1) k = k.toUpperCase();
         return k;
     };
@@ -296,7 +311,7 @@ export default function Recorder() {
                     e.preventDefault();
                 }
 
-                const k = normalizeKey(e.key);
+                const k = normalizeKey(e.key, e.code);
 
                 setKeyCounts(prev => ({
                     ...prev,
