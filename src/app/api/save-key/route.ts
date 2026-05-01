@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const audioContent = formData.get('audio') as Blob;
     const key = formData.get('key') as string;
+    const code = (formData.get('code') as string) || '';
     const model = (formData.get('model') as string) || 'unknown-model';
     const sessionTimestamp = (formData.get('sessionTimestamp') as string) || 'unknown-session';
 
@@ -33,6 +34,43 @@ export async function POST(req: NextRequest) {
       '<': 'LessThan',
       '>': 'GreaterThan',
       '|': 'Pipe',
+      '`': 'Backtick',
+      '~': 'Tilde',
+      '@': 'At',
+      '#': 'Hash',
+      '$': 'Dollar',
+      '%': 'Percent',
+      '^': 'Caret',
+      '&': 'Ampersand',
+      '(': 'LeftParen',
+      ')': 'RightParen',
+      '-': 'Minus',
+      '_': 'Underscore',
+      '=': 'Equal',
+      '+': 'Plus',
+      '[': 'LeftBracket',
+      ']': 'RightBracket',
+      '{': 'LeftBrace',
+      '}': 'RightBrace',
+      'Escape': 'Esc',
+      'Delete': 'Del',
+      'Backspace': 'Backspace',
+      'Tab': 'Tab',
+      'Enter': 'Enter',
+      'CapsLock': 'Caps',
+      'PrintScreen': 'Prt',
+      'PageUp': 'PgUp',
+      'PageDown': 'PgDn',
+      'ArrowUp': 'Up',
+      'ArrowDown': 'Down',
+      'ArrowLeft': 'Left',
+      'ArrowRight': 'Right',
+      'Control': 'Ctrl',
+      'Meta': 'Win',
+      'Alt': 'Alt',
+      'Shift': 'Shift',
+      'Fn': 'Fn',
+      'Function': 'Fn',
     };
 
     const safeKey = keyMap[key] || key.replace(/[^a-z0-9]/gi, '_');
@@ -75,6 +113,7 @@ export async function POST(req: NextRequest) {
     const metaFilePath = path.join(folderPath, metaFileName);
     const metadata = {
       key: key,
+      code: code,
       model: model,
       sessionTimestamp: sessionTimestamp,
       filename: fileName,

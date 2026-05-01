@@ -17,6 +17,7 @@ export default function Recorder() {
     const [showModelError, setShowModelError] = useState(false);
     const [isDetected, setIsDetected] = useState(false);
     const [activeKey, setActiveKey] = useState<string | null>(null);
+    const [activeCode, setActiveCode] = useState<string | null>(null);
     const [keyCounts, setKeyCounts] = useState<Record<string, number>>({});
     const [zoom, setZoom] = useState(0.9);
 
@@ -54,7 +55,13 @@ export default function Recorder() {
                 }
             } else {
                 // Fallback to basic detection
-                model = navigator.platform;
+                const ua = navigator.userAgent;
+                if (ua.includes('Macintosh')) model = 'MacBook';
+                else if (ua.includes('Windows')) model = 'Windows PC';
+                else if (ua.includes('Linux')) model = 'Linux PC';
+                else if (ua.includes('iPhone') || ua.includes('iPad')) model = 'iOS Device';
+                else if (ua.includes('Android')) model = 'Android Device';
+                else model = navigator.platform || 'Unknown';
             }
 
             if (model && model !== 'Unknown' && !computerModel) setComputerModel(model);
@@ -150,7 +157,7 @@ export default function Recorder() {
         }
     };
 
-    const captureKeyPress = useCallback(async (key: string) => {
+    const captureKeyPress = useCallback(async (key: string, code: string) => {
         if (!isRecording || isPaused || !bufferRef.current || !audioCtxRef.current) return;
 
         const now = Date.now();
@@ -167,7 +174,7 @@ export default function Recorder() {
         const captureTime = now;
         const markIndex = writeIndexRef.current;
 
-        addLog(`Key pressed: "${key}". Processing...`, 'info');
+        addLog(`Key pressed: "${key}" (${code}). Processing...`, 'info');
 
         // Wait 500ms to ensure we have the "after" part in the buffer
         setTimeout(async () => {
@@ -214,6 +221,7 @@ export default function Recorder() {
             const formData = new FormData();
             formData.append('audio', wavBlob, 'capture.wav');
             formData.append('key', key);
+            formData.append('code', code);
             formData.append('model', computerModel);
             formData.append('sessionTimestamp', sessionStartTime);
 
@@ -228,7 +236,7 @@ export default function Recorder() {
                     addLog(`Failed to save "${key}".`, 'error');
                 }
             } catch (err) {
-                addLog(`Error saving "${key}".`, 'error');
+                addLog(`Error saving "${key}" (${code}).`, 'error');
             }
         }, 550); // slightly more than 500ms to be safe
     }, [isRecording, computerModel, sessionStartTime, isPaused]);
@@ -246,6 +254,31 @@ export default function Recorder() {
         else if (k === 'PageDown') k = 'PgDn';
         else if (k === 'PrintScreen') k = 'Prt';
         else if (k === 'CapsLock') k = 'Caps';
+        else if (k === 'Escape') k = 'Esc';
+        else if (k === 'Delete') k = 'Del';
+        // Map shifted symbols to their base keys for GUI highlighting
+        else if (k === '!') k = '1';
+        else if (k === '@') k = '2';
+        else if (k === '#') k = '3';
+        else if (k === '$') k = '4';
+        else if (k === '%') k = '5';
+        else if (k === '^') k = '6';
+        else if (k === '&') k = '7';
+        else if (k === '*') k = '8';
+        else if (k === '(') k = '9';
+        else if (k === ')') k = '0';
+        else if (k === '_') k = '-';
+        else if (k === '+') k = '=';
+        else if (k === '{') k = '[';
+        else if (k === '}') k = ']';
+        else if (k === '|') k = '\\';
+        else if (k === ':') k = ';';
+        else if (k === '"') k = "'";
+        else if (k === '<') k = ',';
+        else if (k === '>') k = '.';
+        else if (k === '?') k = '/';
+        else if (k === '~') k = '`';
+        else if (k === 'Fn' || k === 'Function') k = 'Fn';
         else if (k.length === 1) k = k.toUpperCase();
         return k;
     };
@@ -271,9 +304,13 @@ export default function Recorder() {
                 }));
 
                 setActiveKey(k);
-                setTimeout(() => setActiveKey(null), 150);
+                setActiveCode(e.code);
+                setTimeout(() => {
+                    setActiveKey(null);
+                    setActiveCode(null);
+                }, 150);
 
-                captureKeyPress(e.key);
+                captureKeyPress(e.key, e.code);
             }
         };
 
@@ -462,7 +499,15 @@ export default function Recorder() {
                                         pointerEvents: 'none'
                                     }}
                                 >
-                                    {activeKey}
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '1rem', opacity: 0.7, marginBottom: '0.2rem', fontWeight: 600 }}>KEY</span>
+                                        {activeKey}
+                                        {activeCode && activeCode !== activeKey && (
+                                            <span style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '0.5rem', fontWeight: 500, fontFamily: 'monospace' }}>
+                                                {activeCode}
+                                            </span>
+                                        )}
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
